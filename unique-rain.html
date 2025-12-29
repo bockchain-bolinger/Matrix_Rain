@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism Rain</title>
+  <style>
+    :root {
+      --bg1: #071019;
+      --bg2: #0c2a2f;
+      --panel: rgba(10, 14, 20, 0.6);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --accent: #7afcff;
+      --text: #e6f4ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(255, 255, 255, 0.08), transparent 50%),
+        radial-gradient(900px 700px at 80% 20%, rgba(122, 252, 255, 0.12), transparent 55%),
+        linear-gradient(140deg, var(--bg1), var(--bg2));
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #hud {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      width: min(300px, 90vw);
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+      transition:
+        background 300ms ease,
+        border-color 300ms ease,
+        box-shadow 300ms ease,
+        border-radius 300ms ease;
+    }
+
+    body[data-theme="sunset"] #hud {
+      border-radius: 18px;
+      background: linear-gradient(160deg, rgba(42, 14, 24, 0.7), rgba(20, 10, 18, 0.6));
+      box-shadow: 0 18px 34px rgba(0, 0, 0, 0.45);
+    }
+
+    body[data-theme="mono"] #hud {
+      border-radius: 10px;
+      background: rgba(18, 18, 18, 0.75);
+      border-style: dashed;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    body[data-theme="neon"] #hud {
+      border-radius: 20px;
+      background: radial-gradient(circle at top left, rgba(255, 77, 227, 0.2), rgba(10, 8, 20, 0.65));
+      box-shadow:
+        0 0 20px rgba(255, 77, 227, 0.25),
+        0 16px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    body[data-theme="orchid"] #hud {
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(183, 123, 255, 0.18), rgba(18, 10, 22, 0.7));
+      box-shadow: 0 20px 36px rgba(10, 6, 18, 0.6);
+    }
+
+    body[data-theme="aurora"] #hud {
+      border-radius: 16px;
+      background: radial-gradient(circle at top right, rgba(122, 252, 255, 0.2), rgba(10, 14, 20, 0.6));
+    }
+
+    #hud h1 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #hud h1::before {
+      content: "◆";
+      color: var(--accent);
+      font-size: 14px;
+      transition: color 300ms ease, transform 300ms ease;
+    }
+
+    body[data-theme="sunset"] #hud h1::before {
+      content: "☀";
+    }
+
+    body[data-theme="mono"] #hud h1::before {
+      content: "■";
+      font-size: 12px;
+    }
+
+    body[data-theme="neon"] #hud h1::before {
+      content: "✦";
+      transform: rotate(12deg);
+    }
+
+    body[data-theme="orchid"] #hud h1::before {
+      content: "✽";
+      transform: rotate(-8deg);
+    }
+
+    body[data-theme="aurora"] #hud h1::before {
+      content: "❖";
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+
+    label {
+      opacity: 0.8;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    select,
+    input[type="range"] {
+      width: 100%;
+      background: rgba(15, 22, 30, 0.7);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 6px 8px;
+      accent-color: var(--accent);
+    }
+
+    #stats {
+      margin-top: 10px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="rain"></canvas>
+  <div id="hud">
+    <h1>Prism Rain</h1>
+    <div class="row">
+      <label for="theme">Theme</label>
+      <select id="theme">
+        <option value="aurora" selected>Aurora</option>
+        <option value="sunset">Sunset</option>
+        <option value="mono">Mono</option>
+        <option value="neon">Neon</option>
+        <option value="orchid">Orchid</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="density">Density</label>
+      <input id="density" type="range" min="0.5" max="2" step="0.1" value="1">
+    </div>
+    <div class="row">
+      <label for="wind">Wind</label>
+      <input id="wind" type="range" min="-1" max="1" step="0.05" value="0.2">
+    </div>
+    <div class="row">
+      <label for="sound">Sound</label>
+      <input id="sound" type="checkbox">
+    </div>
+    <div class="row">
+      <label for="volume">Volume</label>
+      <input id="volume" type="range" min="0" max="1" step="0.05" value="0.3">
+    </div>
+    <div id="stats">
+      <span id="fps">FPS: --</span>
+      <span id="drops">Drops: --</span>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("rain");
+    const ctx = canvas.getContext("2d");
+    const themeSelect = document.getElementById("theme");
+    const densityInput = document.getElementById("density");
+    const windInput = document.getElementById("wind");
+    const fpsEl = document.getElementById("fps");
+    const dropsEl = document.getElementById("drops");
+    const soundToggle = document.getElementById("sound");
+    const volumeInput = document.getElementById("volume");
+
+    const themes = {
+      aurora: {
+        bg1: "#071019",
+        bg2: "#0c2a2f",
+        glow: "#7afcff",
+        core: "#b9fffe",
+        text: "#e6f4ff",
+        panel: "rgba(10, 14, 20, 0.6)",
+        panelBorder: "rgba(122, 252, 255, 0.2)"
+      },
+      sunset: {
+        bg1: "#140c1f",
+        bg2: "#2e1224",
+        glow: "#ff7a3d",
+        core: "#ffd1a1",
+        text: "#ffe6d6",
+        panel: "rgba(24, 12, 18, 0.6)",
+        panelBorder: "rgba(255, 122, 61, 0.2)"
+      },
+      mono: {
+        bg1: "#0b0b0b",
+        bg2: "#1b1b1b",
+        glow: "#cfd2d7",
+        core: "#ffffff",
+        text: "#f2f2f2",
+        panel: "rgba(15, 15, 15, 0.65)",
+        panelBorder: "rgba(255, 255, 255, 0.16)"
+      },
+      neon: {
+        bg1: "#0c0a1f",
+        bg2: "#1a0f3a",
+        glow: "#ff4de3",
+        core: "#ffe0fb",
+        text: "#ffe6fa",
+        panel: "rgba(12, 8, 22, 0.62)",
+        panelBorder: "rgba(255, 77, 227, 0.2)"
+      },
+      orchid: {
+        bg1: "#120a16",
+        bg2: "#2a1230",
+        glow: "#b77bff",
+        core: "#f1d7ff",
+        text: "#efe3ff",
+        panel: "rgba(18, 10, 22, 0.62)",
+        panelBorder: "rgba(183, 123, 255, 0.2)"
+      }
+    };
+
+    let drops = [];
+    let lastTime = 0;
+    let fpsFrames = 0;
+    let fpsLast = 0;
+    let audioCtx = null;
+    let rainGain = null;
+    let noiseSource = null;
+    let paused = false;
+    let pointer = { x: 0.5, y: 0.5, active: false };
+
+    function setTheme(name) {
+      const theme = themes[name];
+      document.body.dataset.theme = name;
+      document.documentElement.style.setProperty("--bg1", theme.bg1);
+      document.documentElement.style.setProperty("--bg2", theme.bg2);
+      document.documentElement.style.setProperty("--accent", theme.glow);
+      document.documentElement.style.setProperty("--text", theme.text);
+      document.documentElement.style.setProperty("--panel", theme.panel);
+      document.documentElement.style.setProperty("--panel-border", theme.panelBorder);
+    }
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      buildDrops();
+    }
+
+    function buildDrops() {
+      const density = parseFloat(densityInput.value);
+      const count = Math.floor((canvas.width / 12) * density);
+      drops = Array.from({ length: count }, () => makeDrop(true));
+      dropsEl.textContent = `Drops: ${count}`;
+    }
+
+    function makeDrop(randomY) {
+      const length = 40 + Math.random() * 80;
+      return {
+        x: Math.random() * canvas.width,
+        y: randomY ? Math.random() * canvas.height : -length,
+        speed: 3 + Math.random() * 6,
+        length
+      };
+    }
+
+    function makeNoiseBuffer() {
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.3;
+      }
+      return buffer;
+    }
+
+    function startSound() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (noiseSource) return;
+
+      noiseSource = audioCtx.createBufferSource();
+      noiseSource.buffer = makeNoiseBuffer();
+      noiseSource.loop = true;
+
+      rainGain = audioCtx.createGain();
+      rainGain.gain.value = parseFloat(volumeInput.value);
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 800;
+
+      noiseSource.connect(filter);
+      filter.connect(rainGain);
+      rainGain.connect(audioCtx.destination);
+      noiseSource.start(0);
+    }
+
+    function stopSound() {
+      if (noiseSource) {
+        noiseSource.stop();
+        noiseSource.disconnect();
+        noiseSource = null;
+      }
+    }
+
+    function burstDrops(x, y) {
+      for (let i = 0; i < 18; i++) {
+        const drop = makeDrop(false);
+        drop.x = x + (Math.random() - 0.5) * 80;
+        drop.y = y + (Math.random() - 0.5) * 80;
+        drop.speed = 4 + Math.random() * 8;
+        drops.push(drop);
+      }
+      drops = drops.slice(-Math.floor((canvas.width / 12) * parseFloat(densityInput.value)) - 40);
+    }
+
+    function drawFrame(timestamp) {
+      if (paused) {
+        requestAnimationFrame(drawFrame);
+        return;
+      }
+
+      const theme = themes[themeSelect.value];
+      const wind = parseFloat(windInput.value);
+      const windBias = pointer.active ? (pointer.x - 0.5) * 1.2 : 0;
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(5, 7, 12, 0.1)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = theme.glow;
+
+      for (const drop of drops) {
+        const grad = ctx.createLinearGradient(
+          drop.x,
+          drop.y,
+          drop.x + (wind + windBias) * 20,
+          drop.y + drop.length
+        );
+        grad.addColorStop(0, "rgba(0, 0, 0, 0)");
+        grad.addColorStop(0.4, theme.glow);
+        grad.addColorStop(1, theme.core);
+
+        ctx.strokeStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x + (wind + windBias) * 20, drop.y + drop.length);
+        ctx.stroke();
+
+        drop.x += wind + windBias;
+        drop.y += drop.speed;
+
+        if (drop.y > canvas.height + drop.length || drop.x < -50 || drop.x > canvas.width + 50) {
+          Object.assign(drop, makeDrop(false));
+        }
+      }
+
+      fpsFrames++;
+      if (timestamp - fpsLast > 500) {
+        const fps = Math.round((fpsFrames * 1000) / (timestamp - fpsLast));
+        fpsEl.textContent = `FPS: ${fps}`;
+        fpsLast = timestamp;
+        fpsFrames = 0;
+      }
+
+      lastTime = timestamp;
+      requestAnimationFrame(drawFrame);
+    }
+
+    window.addEventListener("resize", resize);
+    densityInput.addEventListener("input", buildDrops);
+    themeSelect.addEventListener("change", () => setTheme(themeSelect.value));
+    volumeInput.addEventListener("input", () => {
+      if (rainGain) {
+        rainGain.gain.value = parseFloat(volumeInput.value);
+      }
+    });
+    soundToggle.addEventListener("change", () => {
+      if (soundToggle.checked) {
+        startSound();
+      } else {
+        stopSound();
+      }
+    });
+
+    canvas.addEventListener("mousemove", (event) => {
+      pointer.active = true;
+      pointer.x = event.clientX / window.innerWidth;
+      pointer.y = event.clientY / window.innerHeight;
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      pointer.active = false;
+    });
+
+    canvas.addEventListener("click", (event) => {
+      burstDrops(event.clientX, event.clientY);
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "p") {
+        paused = !paused;
+      }
+    });
+
+    setTheme(themeSelect.value);
+    resize();
+    fpsLast = performance.now();
+    requestAnimationFrame(drawFrame);
+  </script>
+</body>
+
+</html>
